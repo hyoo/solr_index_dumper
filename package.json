@@ -1,5 +1,5 @@
 {
-  "name": "solr_index_fetcher",
+  "name": "solr_index_dumper",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
