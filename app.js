@@ -18,7 +18,13 @@ let fetchSize
 let targetDirectory
 
 function fetchStreaming (coreName, serialNumber, cursorMark) {
-  const url = `${solrUrl}/solr/${coreName}/select?q=*:*&sort=${opts.uniqueKey}+asc&rows=${fetchSize}&start=0&wt=json&cursorMark=${encodeURIComponent(cursorMark)}`
+  const fieldListHash = {
+    'genome': 'taxon_lineage_ids,collection_date,collection_year,habitat,genome_id,genome_name,other_typing,body_sample_site,contigs,patric_cds,publication,genome_status,isolation_site,temperature_range,isolation_country,common_name,order,longitude,strain,chromosomes,biovar,biosample_accession,isolation_comments,cell_shape,p2_genome_id,genbank_accessions,culture_collection,refseq_accessions,genus,antimicrobial_resistance_evidence,organism_name,additional_metadata,altitude,sequencing_platform,host_gender,latitude,refseq_cds,other_clinical,sra_accession,body_sample_subsite,genome_length,public,owner,user_read,user_write,reference_genome,oxygen_requirement,taxon_lineage_names,gram_stain,gc_content,antimicrobial_resistance,class,pathovar,sporulation,ncbi_project_id,owner,sequencing_depth,salinity,optimal_temperature,comments,disease,geographic_location,taxon_id,plasmids,kingdom,assembly_method,sequencing_centers,host_age,phylum,depth,mlst,species,assembly_accession,host_health,serovar,motility,refseq_project_id,type_strain,completion_date,sequencing_status,family,bioproject_accession,host_name,isolation_source,date_inserted,date_modified',
+    'genome_feature': 'feature_id,genome_id,na_length,genome_name,alt_locus_tag,p2_feature_id,aa_sequence_md5,accession,segments,strand,public,property,sequence_id,refseq_locus_tag,end,aa_length,annotation,owner,product,na_sequence_md5,gene,start,pos_group,go,taxon_id,patric_id,feature_type,protein_id,figfam_id,plfam_id,pgfam_id,location,gene_id,date_inserted,date_modified',
+    'feature_sequence': 'md5,sequence_type,sequence,date_inserted,date_modified'
+  }
+  const fl = fieldListHash[coreName] || '*'
+  const url = `${solrUrl}/solr/${coreName}/select?q=*:*&sort=${opts.uniqueKey}+asc&rows=${fetchSize}&start=0&wt=json&fl=${fl}&cursorMark=${encodeURIComponent(cursorMark)}`
   console.log(`fetchStreaming [${coreName}, ${serialNumber}] [${totalFetched}]: ${url}`)
 
   rp.get(url, {
