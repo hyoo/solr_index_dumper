@@ -16,6 +16,8 @@ let totalFetched = 0
 let solrUrl
 let fetchSize
 let targetDirectory
+let saveTarget = 'FILE'
+let targetSolr = ''
 
 function fetchStreaming (coreName, serialNumber, cursorMark) {
   const fieldListHash = {
@@ -23,8 +25,8 @@ function fetchStreaming (coreName, serialNumber, cursorMark) {
     'genome_feature': 'feature_id,genome_id,na_length,genome_name,alt_locus_tag,p2_feature_id,aa_sequence_md5,accession,segments,strand,public,property,sequence_id,refseq_locus_tag,end,aa_length,annotation,owner,product,na_sequence_md5,gene,start,pos_group,go,taxon_id,patric_id,feature_type,protein_id,figfam_id,plfam_id,pgfam_id,location,gene_id,date_inserted,date_modified',
     'feature_sequence': 'md5,sequence_type,sequence,date_inserted,date_modified'
   }
-  const fl = fieldListHash[coreName] || '*'
-  const url = `${solrUrl}/solr/${coreName}/select?q=*:*&sort=${opts.uniqueKey}+asc&rows=${fetchSize}&start=0&wt=json&fl=${fl}&cursorMark=${encodeURIComponent(cursorMark)}`
+  const flParam = (fieldListHash[coreName]) ? `&fl=${fieldListHash[coreName]}` : ''
+  const url = `${solrUrl}/solr/${coreName}/select?q=*:*&sort=${opts.uniqueKey}+asc&rows=${fetchSize}&start=0&wt=json${flParam}&cursorMark=${encodeURIComponent(cursorMark)}`
   console.log(`fetchStreaming [${coreName}, ${serialNumber}] [${totalFetched}]: ${url}`)
 
   rp.get(url, {
@@ -37,7 +39,11 @@ function fetchStreaming (coreName, serialNumber, cursorMark) {
       totalFetched += body.response.docs.length
 
       // save
-      saveToFile(opts.core, targetDirectory, serialNumber, body.response.docs)
+      if (saveTarget === 'FILE') {
+        saveToFile(opts.core, targetDirectory, serialNumber, body.response.docs)
+      } else {
+        saveToSolr(opts.core, body.response.docs)
+      }
 
       if (body.nextCursorMark && body.response.numFound > totalFetched) {
         // fetch next
@@ -53,11 +59,27 @@ function saveToFile (prefix = 'file', dir, serialNumber, data) {
   fs.writeFileSync(`./${dir}/${prefix}.${paddedSerialNumber}.json`, JSON.stringify(data), {encoding: 'utf8'})
 }
 
+function saveToSolr (core, data) {
+  const url = `${targetSolr}/solr/${core}/update?commit=false`
+  rp.post(url, {
+    json: true,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: data
+  }).then((res) => {
+    console.log('POST succeeded with status:', res)
+  }).catch((err) => {
+    console.log(`${err}`)
+  })
+}
+
 if (require.main === module) {
   opts.version('0.0.1')
     .option('-c, --core [value]', 'Core name')
     .option('--uniqueKey [value]', 'uniqueKey field name')
     .option('-t, --target [value]', 'Directory to dump data')
+    .option('-s, --targetSolr [value]', 'Index to another solr')
     .option('--solr [value]', 'Solr base url')
     .option('--fetchSize <n>', 'Fetch Size')
     .parse(process.argv)
@@ -68,6 +90,12 @@ if (require.main === module) {
   } else if (!opts.uniqueKey) {
     console.error('\nMust provide unique key field name of the core')
     opts.help()
+  }
+
+  if (opts.targetSolr) {
+    console.log(`switch to save target: ${opts.targetSolr}`)
+    saveTarget = 'SOLR'
+    targetSolr = opts.targetSolr
   }
 
   // global variables
