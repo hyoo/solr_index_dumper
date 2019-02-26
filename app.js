@@ -39,10 +39,11 @@ function fetchStreaming (coreName, serialNumber, cursorMark) {
       totalFetched += body.response.docs.length
 
       // save
+      const sanitizedDocs = sanitize(body.response.docs)
       if (saveTarget === 'FILE') {
-        saveToFile(opts.core, targetDirectory, serialNumber, body.response.docs)
+        saveToFile(opts.core, targetDirectory, serialNumber, sanitizedDocs)
       } else {
-        saveToSolr(opts.core, body.response.docs)
+        saveToSolr(opts.core, sanitizedDocs)
       }
 
       if (body.nextCursorMark && body.response.numFound > totalFetched) {
@@ -52,6 +53,15 @@ function fetchStreaming (coreName, serialNumber, cursorMark) {
         console.log(`Complete fetching ${totalFetched} records from ${coreName}`)
       }
     })
+}
+
+function sanitize (docs) {
+  return docs.map((doc) => {
+    delete doc._version_
+    delete doc.document_type
+
+    return doc
+  })
 }
 
 function saveToFile (prefix = 'file', dir, serialNumber, data) {
